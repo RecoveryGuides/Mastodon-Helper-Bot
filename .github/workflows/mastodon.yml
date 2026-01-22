@@ -1,8 +1,9 @@
-name: 🤖 Mastodon Bot (Daily Post)
+name: 🤖 Mastodon Bot (2 Posts Daily)
 
 on:
   schedule:
-    - cron: '0 8 * * *'  # 8:00 UTC = 9:00 polskiego (zimowy)
+    - cron: '0 8 * * *'   # 8:00 UTC = 9:00 polskiego
+    - cron: '0 16 * * *'  # 16:00 UTC = 17:00 polskiego
   workflow_dispatch:  # Ręczne uruchomienie
 
 jobs:
@@ -13,9 +14,6 @@ jobs:
     steps:
     - name: 📥 Pobierz kod
       uses: actions/checkout@v3
-      with:
-        token: ${{ secrets.GITHUB_TOKEN }}
-        fetch-depth: 0
     
     - name: 🐍 Skonfiguruj Pythona
       uses: actions/setup-python@v4
@@ -32,19 +30,5 @@ jobs:
         MASTODON_ACCESS_TOKEN: ${{ secrets.MASTODON_ACCESS_TOKEN }}
         MASTODON_BASE_URL: ${{ secrets.MASTODON_BASE_URL }}
       run: python bot.py
-    
-    - name: 💾 Zapisz historię postów (jeśli są zmiany)
-      if: always()
-      run: |
-        # Sprawdź czy są zmiany w post_history.json
-        if git status --porcelain | grep -q "post_history.json"; then
-          echo "📝 Zapisuję historię postów..."
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add post_history.json
-          git commit -m "🤖 Update post history $(date +'%Y-%m-%d %H:%M')"
-          git push
-          echo "✅ Historia zapisana"
-        else
-          echo "📭 Brak zmian w historii"
-        fi
+      
+    # BRAK ZAPISYWANIA DO GITHUB - TYLKO PUBLIKACJA
