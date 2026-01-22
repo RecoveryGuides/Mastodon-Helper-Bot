@@ -20,7 +20,7 @@ print("=" * 60)
 
 # ==================== KONFIGURACJA ====================
 
-MAX_POSTS_PER_DAY = 2  # Zmień na 1, 2 lub 3
+MAX_POSTS_PER_DAY = 3  # Zmień na 1, 2 lub 3
 
 # ==================== LISTA PRODUKTÓW ====================
 
