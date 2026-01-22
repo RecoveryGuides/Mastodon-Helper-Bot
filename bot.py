@@ -11,6 +11,7 @@ import json
 import random
 from datetime import datetime, date
 import sys
+import os  # DODANE - brakowało tego importu
 
 print("=" * 60)
 print("🤖 MASTODON BOT - SIMPLE VERSION")
