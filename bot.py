@@ -1,10 +1,9 @@
 #!/usr/bin/env python3
 """
-🤖 MASTODON VALUE-FOCUSED BOT (NO IMAGES)
-- Podkreśla wartość, nie ceny
-- Automatycznie pobiera dane z Payhip
+🤖 MASTODON VALUE-FOCUSED BOT
+- Static product data (no scraping)
 - 1 post dziennie na Twoim koncie
-- Bez obrazków (wersja czysto tekstowa)
+- Focus on value, not prices
 """
 
 from mastodon import Mastodon
@@ -13,46 +12,106 @@ import json
 import random
 from datetime import datetime, date
 import sys
-import requests
-import time
-from bs4 import BeautifulSoup
 
 print("=" * 60)
-print("🤖 MASTODON VALUE BOT (TEXT ONLY)")
+print("🤖 MASTODON VALUE BOT")
 print(f"📅 {datetime.now().strftime('%Y-%m-%d %H:%M')}")
 print("=" * 60)
 
-# ==================== KONFIGURACJA ====================
+# ==================== LISTA PRODUKTÓW (STATYCZNA) ====================
 
-CACHE_DIR = "product_cache"
-os.makedirs(CACHE_DIR, exist_ok=True)
-
-HEADERS = {
-    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
-    'Accept-Language': 'en-US,en;q=0.9',
-    'Accept-Encoding': 'gzip, deflate, br',
-    'DNT': '1',
-    'Connection': 'keep-alive',
-    'Upgrade-Insecure-Requests': '1',
-}
-
-# ==================== LISTA PRODUKTÓW ====================
-
-PRODUCT_URLS = [
-    "https://payhip.com/b/QaDjw",      # How to Talk to Creditors
-    "https://payhip.com/b/fyxsZ",      # Financial First Aid
-    "https://payhip.com/b/J4fcL",      # Debt Recovery
-    "https://payhip.com/b/ugrLq",      # FREE Checklist
-    "https://payhip.com/b/9DWGt",      # UK Budget Calculator
-    "https://payhip.com/b/BvbnP",      # GET YOUR MONEY BACK
-    "https://payhip.com/b/EDhYI",      # 30$-50$ SURVIVAL FOOD SYSTEM
-    "https://payhip.com/b/yBiu5",      # SILENCE THE CALLS
-    "https://payhip.com/b/kMjr3",      # FIND YOUR HIDDEN MONEY
-    "https://payhip.com/b/RyToE",      # MediSave Method
-    "https://payhip.com/b/WT8JI",      # Self Relief Guide FREE
-    "https://payhip.com/b/0YSj7",      # Financial Crisis Survival Pack
-    "https://payhip.com/b/6RIpj",      # the 72 hour cash lifeline
+PRODUCTS = [
+    {
+        "id": "QaDjw",
+        "name": "How to Talk to Creditors – Word-for-Word Scripts That Actually Work",
+        "url": "https://payhip.com/b/QaDjw",
+        "category": "debt",
+        "description": "Professional scripts to handle creditor calls"
+    },
+    {
+        "id": "fyxsZ",
+        "name": "Financial First Aid – What to Do When Money Stress Hits",
+        "url": "https://payhip.com/b/fyxsZ",
+        "category": "stress",
+        "description": "Emergency financial crisis management"
+    },
+    {
+        "id": "J4fcL",
+        "name": "Debt Recovery – A Simple, Realistic Plan for Getting Out of Debt",
+        "url": "https://payhip.com/b/J4fcL",
+        "category": "debt",
+        "description": "Step-by-step debt elimination plan"
+    },
+    {
+        "id": "ugrLq",
+        "name": "FREE Checklist - Could Money Be Waiting for You?",
+        "url": "https://payhip.com/b/ugrLq",
+        "category": "free",
+        "description": "Discover unclaimed money opportunities"
+    },
+    {
+        "id": "9DWGt",
+        "name": "UK Budget Calculator - See Where Your Money Really Goes",
+        "url": "https://payhip.com/b/9DWGt",
+        "category": "budget",
+        "description": "Visual budget tracking for UK residents"
+    },
+    {
+        "id": "BvbnP",
+        "name": "GET YOUR MONEY BACK",
+        "url": "https://payhip.com/b/BvbnP",
+        "category": "money",
+        "description": "Claim refunds and recover lost money"
+    },
+    {
+        "id": "EDhYI",
+        "name": "30$-50$ SURVIVAL FOOD SYSTEM",
+        "url": "https://payhip.com/b/EDhYI",
+        "category": "survival",
+        "description": "Emergency food preparation on a budget"
+    },
+    {
+        "id": "yBiu5",
+        "name": "SILENCE THE CALLS",
+        "url": "https://payhip.com/b/yBiu5",
+        "category": "debt",
+        "description": "Stop collection calls and harassment"
+    },
+    {
+        "id": "kMjr3",
+        "name": "FIND YOUR HIDDEN MONEY",
+        "url": "https://payhip.com/b/kMjr3",
+        "category": "money",
+        "description": "Locate overlooked assets and money"
+    },
+    {
+        "id": "RyToE",
+        "name": "MediSave Method",
+        "url": "https://payhip.com/b/RyToE",
+        "category": "medical",
+        "description": "Reduce medical bills and healthcare costs"
+    },
+    {
+        "id": "WT8JI",
+        "name": "Self Relief Guide FREE",
+        "url": "https://payhip.com/b/WT8JI",
+        "category": "free",
+        "description": "Immediate financial stress relief techniques"
+    },
+    {
+        "id": "0YSj7",
+        "name": "Financial Crisis Survival Pack – Guides to Get Back on Track",
+        "url": "https://payhip.com/b/0YSj7",
+        "category": "survival",
+        "description": "Complete crisis management toolkit"
+    },
+    {
+        "id": "6RIpj",
+        "name": "The 72 Hour Cash Lifeline",
+        "url": "https://payhip.com/b/6RIpj",
+        "category": "emergency",
+        "description": "Emergency cash solutions in 72 hours"
+    }
 ]
 
 # ==================== STRATEGIE WARTOŚCI ====================
@@ -65,15 +124,13 @@ VALUE_STRATEGIES = {
             "Complimentary guide",
             "Free gift for you",
             "No-cost solution",
-            "Zero investment required",
-            "Absolutely FREE download"
+            "Zero investment required"
         ],
         "benefits": [
             "Instant access - no waiting",
             "No strings attached",
             "Download and use today",
-            "Immediate help available",
-            "Get started right away"
+            "Immediate help available"
         ]
     },
     "budget": {
@@ -82,16 +139,13 @@ VALUE_STRATEGIES = {
             "Budget mastery tool",
             "Financial clarity system",
             "Money tracking solution",
-            "Spending insight guide",
-            "Cash flow optimizer",
-            "Financial roadmap"
+            "Spending insight guide"
         ],
         "benefits": [
             "See where every dollar goes",
             "Lifetime financial clarity",
             "Take control of your cash flow",
-            "Master your finances",
-            "Achieve money goals faster"
+            "Master your finances"
         ]
     },
     "debt": {
@@ -100,16 +154,28 @@ VALUE_STRATEGIES = {
             "Creditor communication toolkit",
             "Debt resolution system",
             "Collection call defense",
-            "Financial peace protocol",
-            "Debt negotiation guide",
-            "Creditor management system"
+            "Financial peace protocol"
         ],
         "benefits": [
             "Professional word-for-word scripts",
             "Regain peace of mind",
             "Stop harassment legally",
-            "Take back control",
-            "Reduce stress immediately"
+            "Take back control"
+        ]
+    },
+    "stress": {
+        "emojis": ["😌", "🧘", "💆", "🌊", "🌈"],
+        "phrases": [
+            "Financial stress relief system",
+            "Money anxiety solution",
+            "Mental peace toolkit",
+            "Crisis calm down guide"
+        ],
+        "benefits": [
+            "Reduce financial anxiety",
+            "Find immediate relief",
+            "Restore mental clarity",
+            "Manage money stress"
         ]
     },
     "survival": {
@@ -118,34 +184,13 @@ VALUE_STRATEGIES = {
             "Emergency preparedness system",
             "Crisis survival toolkit",
             "Financial safety net",
-            "Urgent situation guide",
-            "Emergency response plan",
-            "Crisis management system"
+            "Urgent situation guide"
         ],
         "benefits": [
             "Be ready for anything",
             "Peace of mind in crisis",
             "Practical step-by-step plan",
-            "Lifetime preparedness",
             "Protect your family"
-        ]
-    },
-    "premium": {
-        "emojis": ["🏆", "💎", "👑", "⭐", "🎖️"],
-        "phrases": [
-            "Comprehensive premium system",
-            "Ultimate solution toolkit",
-            "Complete mastery guide",
-            "Professional-grade resource",
-            "All-in-one solution pack",
-            "Premium financial system"
-        ],
-        "benefits": [
-            "All-in-one solution",
-            "Lifetime access & updates",
-            "Professional results",
-            "Transformative system",
-            "Complete coverage"
         ]
     },
     "medical": {
@@ -154,16 +199,13 @@ VALUE_STRATEGIES = {
             "Medical bill defense system",
             "Healthcare cost solution",
             "Medical financial toolkit",
-            "Patient advocacy guide",
-            "Medical expense reducer",
-            "Healthcare savings plan"
+            "Patient advocacy guide"
         ],
         "benefits": [
             "Reduce medical expenses",
             "Navigate healthcare costs",
             "Save thousands on bills",
-            "Expert guidance included",
-            "Maximize insurance benefits"
+            "Expert guidance included"
         ]
     },
     "money": {
@@ -172,14 +214,28 @@ VALUE_STRATEGIES = {
             "Money recovery system",
             "Financial discovery tool",
             "Cash flow optimizer",
-            "Money finding guide",
-            "Financial detective kit"
+            "Money finding guide"
         ],
         "benefits": [
             "Find hidden money opportunities",
             "Maximize your income",
             "Unlock financial potential",
             "Discover overlooked resources"
+        ]
+    },
+    "emergency": {
+        "emojis": ["🚑", "⏰", "⚡", "🆘", "🔔"],
+        "phrases": [
+            "Emergency cash solution",
+            "Urgent financial lifeline",
+            "Quick crisis response",
+            "Immediate help system"
+        ],
+        "benefits": [
+            "Get cash fast when needed",
+            "Emergency situation ready",
+            "Quick access to solutions",
+            "Immediate relief available"
         ]
     }
 }
@@ -224,96 +280,9 @@ CTAS = [
 
 # ==================== FUNKCJE POMOCNICZE ====================
 
-def fetch_product_data(url, force_refresh=False):
-    """Pobiera dane produktu z Payhip"""
-    cache_key = url.split('/')[-1]
-    cache_file = os.path.join(CACHE_DIR, f"{cache_key}.json")
-    
-    # Sprawdź cache (ważny 24h)
-    if not force_refresh and os.path.exists(cache_file):
-        cache_age = time.time() - os.path.getmtime(cache_file)
-        if cache_age < 86400:  # 24 godziny
-            try:
-                with open(cache_file, 'r') as f:
-                    cached = json.load(f)
-                print(f"📦 Używam cache dla {cache_key}")
-                return cached
-            except:
-                pass  # Jeśli błąd cache, pobierz na nowo
-    
-    print(f"🌐 Pobieram dane z: {url}")
-    
-    try:
-        response = requests.get(url, headers=HEADERS, timeout=15)
-        response.raise_for_status()
-        soup = BeautifulSoup(response.content, 'html.parser')
-        
-        # Tytuł
-        title_elem = soup.find('h1', class_='product-title') or soup.find('h1') or soup.find('title')
-        title = title_elem.get_text(strip=True) if title_elem else "Financial Resource"
-        
-        # Określ kategorię na podstawie tytułu
-        title_lower = title.lower()
-        
-        if any(word in title_lower for word in ['free', 'checklist', 'guide']):
-            category = "free"
-        elif any(word in title_lower for word in ['budget', 'calculator']):
-            category = "budget"
-        elif any(word in title_lower for word in ['debt', 'creditor', 'collection', 'silence', 'recovery']):
-            category = "debt"
-        elif any(word in title_lower for word in ['survival', 'food', 'emergency', 'crisis', 'lifeline', 'pack']):
-            category = "survival"
-        elif any(word in title_lower for word in ['medical', 'medisave']):
-            category = "medical"
-        elif any(word in title_lower for word in ['money', 'cash', 'financial', 'get your money']):
-            category = "money"
-        elif any(word in title_lower for word in ['system', 'premium', 'complete']):
-            category = "premium"
-        else:
-            category = "budget"
-        
-        product_data = {
-            "name": title,
-            "url": url,
-            "category": category,
-            "fetched_at": datetime.now().isoformat(),
-            "product_id": cache_key
-        }
-        
-        # Zapisz do cache
-        with open(cache_file, 'w') as f:
-            json.dump(product_data, f, indent=2)
-        
-        print(f"✅ Pobrano: {title[:50]}...")
-        return product_data
-        
-    except requests.exceptions.Timeout:
-        print(f"⏱️  Timeout przy pobieraniu {url}")
-    except requests.exceptions.RequestException as e:
-        print(f"🌐 Błąd sieci: {e}")
-    except Exception as e:
-        print(f"⚠️  Inny błąd: {type(e).__name__}: {e}")
-    
-    # Fallback na cache nawet jeśli stary
-    if os.path.exists(cache_file):
-        try:
-            with open(cache_file, 'r') as f:
-                return json.load(f)
-        except:
-            pass
-    
-    # Ostateczny fallback
-    return {
-        "name": "Financial Resource",
-        "url": url,
-        "category": "budget",
-        "fetched_at": datetime.now().isoformat(),
-        "product_id": cache_key
-    }
-
-def get_value_description(product_data):
+def get_value_description(product):
     """Zwraca opis wartości zamiast ceny"""
-    category = product_data["category"]
+    category = product["category"]
     strategy = VALUE_STRATEGIES.get(category, VALUE_STRATEGIES["budget"])
     
     emoji = random.choice(strategy["emojis"])
@@ -338,25 +307,26 @@ def should_post_today():
     
     return True, history
 
-def generate_post(product_data):
+def generate_post(product):
     """Generuje post skupiony na wartości"""
     
     motto = random.choice(MOTTOS)
     cta = random.choice(CTAS)
-    value_desc = get_value_description(product_data)
+    value_desc = get_value_description(product)
     
     # Hashtagi tematyczne
     hashtags_map = {
         "free": ["#FreeResource", "#FinancialHelp", "#MoneyTips", "#NoCost", "#FreeGuide"],
         "budget": ["#Budgeting", "#MoneyManagement", "#PersonalFinance", "#FinancialClarity", "#CashFlow"],
         "debt": ["#DebtFree", "#DebtHelp", "#FinancialFreedom", "#PeaceOfMind", "#CreditorTips"],
+        "stress": ["#MoneyStress", "#FinancialWellness", "#MentalHealth", "#StressRelief"],
         "survival": ["#EmergencyPrep", "#SurvivalTips", "#FinancialSafety", "#CrisisManagement", "#Preparedness"],
         "medical": ["#MedicalBills", "#HealthcareCosts", "#MedicalDebt", "#PatientAdvocate", "#HealthFinance"],
         "money": ["#MoneyTips", "#FinancialDiscovery", "#CashFlow", "#MoneyManagement", "#FindMoney"],
-        "premium": ["#FinancialTools", "#MoneySystems", "#PremiumResources", "#CompleteSolutions", "#AllInOne"]
+        "emergency": ["#EmergencyCash", "#UrgentHelp", "#QuickMoney", "#FinancialEmergency"]
     }
     
-    base_tags = hashtags_map.get(product_data["category"], ["#PersonalFinance", "#MoneyTips", "#FinancialHelp"])
+    base_tags = hashtags_map.get(product["category"], ["#PersonalFinance", "#MoneyTips", "#FinancialHelp"])
     additional_tags = random.choice([
         ["#FinancialEducation", "#SmartMoney"],
         ["#MoneyMindset", "#WealthBuilding"],
@@ -373,11 +343,11 @@ def generate_post(product_data):
     post_lines = []
     post_lines.append(f"{motto}")
     post_lines.append("")  # Pusta linia
-    post_lines.append(f"📘 {product_data['name']}")
+    post_lines.append(f"📘 {product['name']}")
     post_lines.append(f"{value_desc}")
     post_lines.append("")  # Pusta linia
     post_lines.append(f"{cta}")
-    post_lines.append(f"{product_data['url']}")
+    post_lines.append(f"{product['url']}")
     post_lines.append("")  # Pusta linia
     post_lines.append(f"{hashtags}")
     
@@ -386,10 +356,10 @@ def generate_post(product_data):
     # Upewnij się że nie przekracza 500 znaków
     if len(post) > 500:
         # Skróć nazwę jeśli trzeba
-        name = product_data['name']
+        name = product['name']
         if len(name) > 80:
-            product_data['name'] = name[:75] + "..."
-            return generate_post(product_data)
+            product['name'] = name[:75] + "..."
+            return generate_post(product)
         else:
             # Skróć hashtagi
             post = "\n".join(post_lines[:-1]) + "\n" + " ".join(all_tags[:4])
@@ -412,44 +382,36 @@ def main():
     print("✅ Rozpoczynam dzisiejszy post")
     
     # 2. Wybierz produkt (rotacja)
-    available_ids = [url.split('/')[-1] for url in PRODUCT_URLS 
-                     if url.split('/')[-1] not in history.get("posted_products", [])]
+    available_products = [p for p in PRODUCTS 
+                         if p["id"] not in history.get("posted_products", [])]
     
-    if not available_ids:
+    if not available_products:
         print("🔄 Wszystkie produkty były reklamowane, resetuję rotację")
         history["posted_products"] = []
-        available_ids = [url.split('/')[-1] for url in PRODUCT_URLS]
+        available_products = PRODUCTS
     
-    selected_id = random.choice(available_ids)
-    selected_url = f"https://payhip.com/b/{selected_id}"
+    selected_product = random.choice(available_products)
     
-    print(f"🛒 Wybrany produkt ID: {selected_id}")
-    print(f"🔗 URL: {selected_url}")
+    print(f"🛒 Wybrany produkt: {selected_product['name'][:50]}...")
+    print(f"📊 Kategoria: {selected_product['category'].upper()}")
     
-    # 3. Pobierz dane produktu
-    print("\n🔍 Pobieram informacje o produkcie...")
-    product_data = fetch_product_data(selected_url)
-    
-    print(f"📊 Kategoria: {product_data['category'].upper()}")
-    print(f"🏷️  Nazwa: {product_data['name']}")
-    
-    # 4. Wygeneruj post skupiony na wartości
+    # 3. Wygeneruj post skupiony na wartości
     print("\n📝 Tworzę post (skupiony na wartości)...")
-    post_content = generate_post(product_data)
+    post_content = generate_post(selected_product)
     
     print(f"\n✍️  POST ({len(post_content)} znaków):")
     print("-" * 50)
     print(post_content)
     print("-" * 50)
     
-    # 5. Połącz z Mastodon
+    # 4. Połącz z Mastodon
     ACCESS_TOKEN = os.environ.get('MASTODON_ACCESS_TOKEN')
     BASE_URL = os.environ.get('MASTODON_BASE_URL', 'https://mastodon.social')
     
     if not ACCESS_TOKEN:
         print("\n❌ BRAK MASTODON_ACCESS_TOKEN!")
         print("Dodaj token w GitHub Secrets:")
-        print("1. Wejdź do Settings → Secrets and variables → Actions")
+        print("1. Settings → Secrets and variables → Actions")
         print("2. Kliknij 'New repository secret'")
         print("3. Nazwa: MASTODON_ACCESS_TOKEN")
         print("4. Wartość: Twój token z Mastodona")
@@ -475,7 +437,7 @@ def main():
         print("   • Token ma uprawnienia 'write:statuses'")
         sys.exit(1)
     
-    # 6. Opublikuj post
+    # 5. Opublikuj post
     print("\n🚀 Publikuję na Twojej tablicy Mastodona...")
     
     try:
@@ -490,15 +452,15 @@ def main():
             print(f"🔗 Link do posta: {response['url']}")
             print(f"📅 Data publikacji: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
             
-            # 7. Zaktualizuj historię
+            # 6. Zaktualizuj historię
             history["last_post_date"] = date.today().isoformat()
             history["last_post_time"] = datetime.now().strftime('%H:%M')
-            history["posted_products"].append(selected_id)
+            history["posted_products"].append(selected_product["id"])
             
             try:
                 with open("post_history.json", "w") as f:
                     json.dump(history, f, indent=2)
-                print(f"📊 Historia zaktualizowana: {len(history['posted_products'])}/{len(PRODUCT_URLS)} produktów")
+                print(f"📊 Historia zaktualizowana: {len(history['posted_products'])}/{len(PRODUCTS)} produktów")
             except Exception as e:
                 print(f"⚠️  Błąd zapisu historii: {e}")
             
@@ -508,12 +470,12 @@ def main():
     except Exception as e:
         print(f"❌ Błąd publikacji na Mastodonie: {type(e).__name__}: {e}")
     
-    # 8. Podsumowanie
+    # 7. Podsumowanie
     print("\n" + "=" * 60)
     print("🏁 BOT ZAKOŃCZONY DZIAŁANIE")
     print("=" * 60)
-    print(f"📘 Produkt: {product_data['name'][:60]}...")
-    print(f"🎯 Strategia: {product_data['category']} (value-focused)")
+    print(f"📘 Produkt: {selected_product['name'][:60]}...")
+    print(f"🎯 Strategia: {selected_product['category']} (value-focused)")
     print(f"📅 Data: {date.today().isoformat()}")
     print(f"⏰ Godzina: {datetime.now().strftime('%H:%M')}")
     print(f"🔄 Następny post: Jutro o podobnej porze")
