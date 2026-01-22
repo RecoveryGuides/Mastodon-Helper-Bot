@@ -54,13 +54,13 @@ Gdy dodasz nowy produkt na Payhip:
 
 python
 
-{
+`{
     "id": "NOWY_ID",  # np. "AbC123" z URL https://payhip.com/b/AbC123
     "name": "Nazwa produktu",
     "url": "https://payhip.com/b/NOWY_ID",
     "category": "kategoria",  # debt/free/budget/money/survival/medical/emergency/stress
     "description": "Krótki opis"
-}
+}`
 
 ### Zmiana godziny postowania
 Edytuj plik `.github/workflows/mastodon.yml`:
