@@ -307,6 +307,25 @@ def should_post_today():
     
     return True, history
 
+def save_history(history, product_id, success=True):
+    """Zapisuje historię postów"""
+    try:
+        if success:
+            history["last_post_date"] = date.today().isoformat()
+            history["last_post_time"] = datetime.now().strftime('%H:%M')
+            if product_id not in history.get("posted_products", []):
+                history.setdefault("posted_products", []).append(product_id)
+        
+        with open("post_history.json", "w") as f:
+            json.dump(history, f, indent=2)
+        
+        print(f"📊 Historia zapisana: {len(history.get('posted_products', []))}/{len(PRODUCTS)} produktów")
+        return True
+        
+    except Exception as e:
+        print(f"⚠️  Błąd zapisu historii: {e}")
+        return False
+
 def generate_post(product):
     """Generuje post skupiony na wartości"""
     
@@ -391,9 +410,11 @@ def main():
         available_products = PRODUCTS
     
     selected_product = random.choice(available_products)
+    selected_id = selected_product["id"]
     
     print(f"🛒 Wybrany produkt: {selected_product['name'][:50]}...")
     print(f"📊 Kategoria: {selected_product['category'].upper()}")
+    print(f"🔗 URL: {selected_product['url']}")
     
     # 3. Wygeneruj post skupiony na wartości
     print("\n📝 Tworzę post (skupiony na wartości)...")
@@ -410,14 +431,10 @@ def main():
     
     if not ACCESS_TOKEN:
         print("\n❌ BRAK MASTODON_ACCESS_TOKEN!")
-        print("Dodaj token w GitHub Secrets:")
-        print("1. Settings → Secrets and variables → Actions")
-        print("2. Kliknij 'New repository secret'")
-        print("3. Nazwa: MASTODON_ACCESS_TOKEN")
-        print("4. Wartość: Twój token z Mastodona")
+        save_history(history, selected_id, success=False)
         sys.exit(1)
     
-    print(f"\n🔗 Łączę z Mastodon: {BASE_URL}")
+    print(f"\n🔗 Łączę z Mastodon...")
     
     try:
         mastodon = Mastodon(
@@ -427,14 +444,10 @@ def main():
         )
         account = mastodon.account_verify_credentials()
         print(f"✅ Połączono jako: @{account['username']}")
-        print(f"   👤 Followers: {account['followers_count']}")
         
     except Exception as e:
-        print(f"❌ Błąd połączenia z Mastodon: {type(e).__name__}: {e}")
-        print("\n💡 Sprawdź czy:")
-        print("   • Token jest poprawny")
-        print("   • URL instancji jest prawidłowy")
-        print("   • Token ma uprawnienia 'write:statuses'")
+        print(f"❌ Błąd połączenia z Mastodon: {e}")
+        save_history(history, selected_id, success=False)
         sys.exit(1)
     
     # 5. Opublikuj post
@@ -450,35 +463,23 @@ def main():
         if response and 'url' in response:
             print(f"✅ SUKCES! OPUBLIKOWANO!")
             print(f"🔗 Link do posta: {response['url']}")
-            print(f"📅 Data publikacji: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
-            
-            # 6. Zaktualizuj historię
-            history["last_post_date"] = date.today().isoformat()
-            history["last_post_time"] = datetime.now().strftime('%H:%M')
-            history["posted_products"].append(selected_product["id"])
-            
-            try:
-                with open("post_history.json", "w") as f:
-                    json.dump(history, f, indent=2)
-                print(f"📊 Historia zaktualizowana: {len(history['posted_products'])}/{len(PRODUCTS)} produktów")
-            except Exception as e:
-                print(f"⚠️  Błąd zapisu historii: {e}")
+            save_history(history, selected_id, success=True)
             
         else:
-            print("❌ Nie udało się opublikować (brak odpowiedzi)")
+            print("❌ Nie udało się opublikować")
+            save_history(history, selected_id, success=False)
             
     except Exception as e:
-        print(f"❌ Błąd publikacji na Mastodonie: {type(e).__name__}: {e}")
+        print(f"❌ Błąd publikacji: {e}")
+        save_history(history, selected_id, success=False)
     
-    # 7. Podsumowanie
+    # 6. Podsumowanie
     print("\n" + "=" * 60)
     print("🏁 BOT ZAKOŃCZONY DZIAŁANIE")
     print("=" * 60)
     print(f"📘 Produkt: {selected_product['name'][:60]}...")
-    print(f"🎯 Strategia: {selected_product['category']} (value-focused)")
+    print(f"🎯 Kategoria: {selected_product['category']}")
     print(f"📅 Data: {date.today().isoformat()}")
-    print(f"⏰ Godzina: {datetime.now().strftime('%H:%M')}")
-    print(f"🔄 Następny post: Jutro o podobnej porze")
     print("=" * 60)
 
 if __name__ == "__main__":
