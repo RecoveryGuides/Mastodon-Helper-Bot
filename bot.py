@@ -349,20 +349,20 @@ def generate_post(product_data):
     hashtags_map = {
         "free": ["#FreeResource", "#FinancialHelp", "#MoneyTips", "#NoCost", "#FreeGuide"],
         "budget": ["#Budgeting", "#MoneyManagement", "#PersonalFinance", "#FinancialClarity", "#CashFlow"],
-        "debt": ["#DebtFree", "#DebtHelp", "#FinancialFreedom", "#PeaceOfMind", #CreditorTips"],
-        "survival": ["#EmergencyPrep", #SurvivalTips", #FinancialSafety", #CrisisManagement", #Preparedness"],
-        "medical": ["#MedicalBills", #HealthcareCosts", #MedicalDebt", #PatientAdvocate", #HealthFinance"],
-        "money": ["#MoneyTips", #FinancialDiscovery", #CashFlow", #MoneyManagement", #FindMoney"],
-        "premium": ["#FinancialTools", #MoneySystems", #PremiumResources", #CompleteSolutions", #AllInOne"]
+        "debt": ["#DebtFree", "#DebtHelp", "#FinancialFreedom", "#PeaceOfMind", "#CreditorTips"],
+        "survival": ["#EmergencyPrep", "#SurvivalTips", "#FinancialSafety", "#CrisisManagement", "#Preparedness"],
+        "medical": ["#MedicalBills", "#HealthcareCosts", "#MedicalDebt", "#PatientAdvocate", "#HealthFinance"],
+        "money": ["#MoneyTips", "#FinancialDiscovery", "#CashFlow", "#MoneyManagement", "#FindMoney"],
+        "premium": ["#FinancialTools", "#MoneySystems", "#PremiumResources", "#CompleteSolutions", "#AllInOne"]
     }
     
-    base_tags = hashtags_map.get(product_data["category"], ["#PersonalFinance", #MoneyTips", #FinancialHelp"])
+    base_tags = hashtags_map.get(product_data["category"], ["#PersonalFinance", "#MoneyTips", "#FinancialHelp"])
     additional_tags = random.choice([
-        ["#FinancialEducation", #SmartMoney"],
-        ["#MoneyMindset", #WealthBuilding"],
-        ["#FinanceTips", #EconomicEmpowerment"],
-        ["#FinancialWellness", #MoneyManagement"],
-        ["#DebtFreeJourney", #FinancialGoals"]
+        ["#FinancialEducation", "#SmartMoney"],
+        ["#MoneyMindset", "#WealthBuilding"],
+        ["#FinanceTips", "#EconomicEmpowerment"],
+        ["#FinancialWellness", "#MoneyManagement"],
+        ["#DebtFreeJourney", "#FinancialGoals"]
     ])
     
     all_tags = list(set(base_tags + additional_tags))
