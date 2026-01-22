@@ -4,6 +4,7 @@ on:
   schedule:
     - cron: '30 8 * * *'   # 8:30 UTC = 9:30 polskiego
     - cron: '30 16 * * *'  # 16:30 UTC = 17:30 polskiego
+    - cron: '30 21 * * *'  # 21:30 UTC = 22:30 polskiego
   workflow_dispatch:
 
 jobs:
