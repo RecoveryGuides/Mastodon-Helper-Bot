@@ -46,6 +46,22 @@ Bot publikujący **1 post dziennie** na Twoim koncie Mastodon, reklamujący prod
 
 ## ⚙️ Dostosowanie
 
+🔧 Jak aktualizować produkty:
+
+Gdy dodasz nowy produkt na Payhip:
+
+    Dodaj go do listy PRODUCTS w bot.py:
+
+python
+
+{
+    "id": "NOWY_ID",  # np. "AbC123" z URL https://payhip.com/b/AbC123
+    "name": "Nazwa produktu",
+    "url": "https://payhip.com/b/NOWY_ID",
+    "category": "kategoria",  # debt/free/budget/money/survival/medical/emergency/stress
+    "description": "Krótki opis"
+}
+
 ### Zmiana godziny postowania
 Edytuj plik `.github/workflows/mastodon.yml`:
 ```yaml
