@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """
-🤖 MASTODON VALUE-FOCUSED BOT - SIMPLE VERSION
-- Static product data
-- 2 posts per day (change MAX_POSTS_PER_DAY)
-- No GitHub history - only local memory during run
+🤖 MASTODON BOT - URUCHAMIANIE CO 2 GODZINY
+- Bot działa co 2h, ale może postować rzadziej
+- Łatwe odwołanie/wyłączenie
+- Prosta konfiguracja
 """
 
 from mastodon import Mastodon
@@ -11,18 +11,140 @@ import json
 import random
 from datetime import datetime, date
 import sys
-import os  # DODANE - brakowało tego importu
+import os
 
 print("=" * 60)
-print("🤖 MASTODON BOT - SIMPLE VERSION")
+print("🤖 MASTODON BOT - CO 2 GODZINY")
 print(f"📅 {datetime.now().strftime('%Y-%m-%d %H:%M')}")
 print("=" * 60)
 
-# ==================== KONFIGURACJA ====================
+# ==================== KONFIGURACJA BOTA ====================
+# ZMIENIAJ TYLKO TU ↓↓↓
 
-MAX_POSTS_PER_DAY = 3  # Zmień na 1, 2 lub 3
+CONFIG = {
+    "active": True,                    # Ustaw False aby wyłączyć bota
+    "max_posts_per_day": 8,           # Maks postów dziennie
+    "post_frequency_hours": 2,        # Co ile godzin może postować (jeśli limit > 1)
+    "post_chance_percent": 60,        # Szansa na post w danym uruchomieniu
+    "exact_hours": None,              # None = dowolna godzina, lub np. [9, 15, 21]
+    "timezone_offset": 1              # Przesunięcie czasu (UTC+0), zmień na 1 dla Polski zimą
+}
 
-# ==================== LISTA PRODUKTÓW ====================
+# ==================== SPRAWDŹ CZY BOT AKTYWNY ====================
+
+def check_bot_active():
+    """Sprawdź czy bot jest włączony"""
+    if not CONFIG["active"]:
+        print("🔴 BOT WYŁĄCZONY - zmień CONFIG['active'] na True")
+        return False
+    return True
+
+# ==================== SPRAWDŹ CZY TERAZ PUBLIKOWAĆ ====================
+
+def should_post_now():
+    """Sprawdź czy teraz jest odpowiedni czas na publikację"""
+    
+    # 1. Sprawdź czy bot aktywny
+    if not check_bot_active():
+        return False
+    
+    now = datetime.now()
+    current_hour = (now.hour + CONFIG["timezone_offset"]) % 24
+    
+    print(f"⏰ Godzina lokalna: {current_hour:02d}:{now.minute:02d}")
+    
+    # 2. Sprawdź czy dozwolona dokładna godzina
+    if CONFIG["exact_hours"] is not None:
+        if current_hour not in CONFIG["exact_hours"]:
+            print(f"⏭️ {current_hour}:00 - nie w dozwolonych godzinach")
+            print(f"   Dozwolone: {CONFIG['exact_hours']}")
+            return False
+    
+    # 3. Losowa szansa
+    chance = random.randint(1, 100)
+    if chance > CONFIG["post_chance_percent"]:
+        print(f"🎲 Losowo pomijam (szansa: {chance}% > {CONFIG['post_chance_percent']}%)")
+        return False
+    
+    # 4. Sprawdź dzienny limit
+    if not check_daily_limit():
+        return False
+    
+    # 5. Sprawdź częstotliwość (jeśli >1 post dziennie)
+    if CONFIG["max_posts_per_day"] > 1:
+        if not check_frequency():
+            return False
+    
+    print(f"✅ DECYZJA: POSTUJĘ!")
+    return True
+
+def check_daily_limit():
+    """Sprawdź dzienny limit postów"""
+    LIMIT_FILE = "/tmp/mastodon_daily_limit.json"
+    
+    if os.path.exists(LIMIT_FILE):
+        try:
+            with open(LIMIT_FILE, "r") as f:
+                limit_data = json.load(f)
+        except:
+            limit_data = {"date": None, "posts_today": 0}
+    else:
+        limit_data = {"date": None, "posts_today": 0}
+    
+    today = str(date.today())
+    
+    # Reset jeśli nowy dzień
+    if limit_data.get("date") != today:
+        print(f"🆕 NOWY DZIEŃ: {today} - resetuję licznik")
+        limit_data = {"date": today, "posts_today": 0}
+    
+    # Sprawdź limit
+    if limit_data["posts_today"] >= CONFIG["max_posts_per_day"]:
+        print(f"⏭️ Dzisiejszy limit: {limit_data['posts_today']}/{CONFIG['max_posts_per_day']}")
+        return False
+    
+    # Zwiększ licznik i zapisz
+    limit_data["posts_today"] += 1
+    try:
+        with open(LIMIT_FILE, "w") as f:
+            json.dump(limit_data, f, indent=2)
+        print(f"📊 Licznik: {limit_data['posts_today']}/{CONFIG['max_posts_per_day']}")
+    except:
+        print("⚠️  Nie udało się zapisać licznika")
+    
+    return True
+
+def check_frequency():
+    """Sprawdź czy nie za wcześnie od ostatniego postu"""
+    FREQ_FILE = "/tmp/mastodon_last_post.json"
+    
+    now = datetime.now()
+    
+    if os.path.exists(FREQ_FILE):
+        try:
+            with open(FREQ_FILE, "r") as f:
+                last_post = json.load(f)
+            last_time = datetime.fromisoformat(last_post["timestamp"])
+            
+            # Oblicz różnicę w godzinach
+            hours_diff = (now - last_time).total_seconds() / 3600
+            
+            if hours_diff < CONFIG["post_frequency_hours"]:
+                print(f"⏭️ Za wcześnie od ostatniego postu: {hours_diff:.1f}h < {CONFIG['post_frequency_hours']}h")
+                return False
+        except:
+            pass
+    
+    # Zapisz czas obecnego postu
+    try:
+        with open(FREQ_FILE, "w") as f:
+            json.dump({"timestamp": now.isoformat()}, f, indent=2)
+    except:
+        pass
+    
+    return True
+
+# ==================== PRODUKTY (BEZ ZMIAN) ====================
 
 PRODUCTS = [
     {
@@ -105,8 +227,6 @@ PRODUCTS = [
     }
 ]
 
-# ==================== WARTOŚĆ + HASHTAGI ====================
-
 VALUE_TEXTS = {
     "free": {"emoji": "🎁", "text": "100% FREE resource", "benefit": "Instant access"},
     "budget": {"emoji": "💰", "text": "Budget mastery tool", "benefit": "Financial clarity"},
@@ -145,44 +265,38 @@ HASHTAGS = {
     "emergency": "#EmergencyCash #UrgentHelp #QuickMoney"
 }
 
-# ==================== PROSTA LOGIKA ====================
+# ==================== WYBIERZ PRODUKT ====================
 
 def choose_product():
-    """Wybierz produkt z pamięcią sesji"""
+    """Wybierz produkt"""
     try:
-        # Spróbuj wczytać co już było w tej sesji
-        with open("/tmp/mastodon_bot_today.json", "r") as f:
+        with open("/tmp/mastodon_used_today.json", "r") as f:
             used = json.load(f)
     except:
         used = {"date": str(date.today()), "used_ids": []}
     
-    # Reset jeśli nowy dzień
     if used["date"] != str(date.today()):
         used = {"date": str(date.today()), "used_ids": []}
     
-    # Dostępne produkty (te nieużywane dzisiaj)
     available = [p for p in PRODUCTS if p["id"] not in used["used_ids"]]
     
-    # Jeśli wszystkie użyte, zacznij od nowa
     if not available:
         available = PRODUCTS
         used["used_ids"] = []
     
-    # Wybierz losowo
     product = random.choice(available)
     
-    # Zapisz że użyty
     used["used_ids"].append(product["id"])
     try:
-        with open("/tmp/mastodon_bot_today.json", "w") as f:
+        with open("/tmp/mastodon_used_today.json", "w") as f:
             json.dump(used, f)
     except:
-        pass  # Nie przejmuj się jeśli zapis się nie uda
+        pass
     
     return product
 
 def create_post(product):
-    """Stwórz prosty post"""
+    """Stwórz post"""
     category = product["category"]
     value = VALUE_TEXTS.get(category, VALUE_TEXTS["budget"])
     
@@ -194,29 +308,41 @@ def create_post(product):
     post += f"{product['url']}\n\n"
     post += f"{HASHTAGS.get(category, '#PersonalFinance #MoneyTips')}"
     
-    # Obetnij jeśli za długie
     if len(post) > 500:
         post = post[:497] + "..."
     
     return post
 
+# ==================== GŁÓWNA FUNKCJA ====================
+
 def main():
-    """Główna funkcja - PROSTA"""
-    print(f"🎯 Bot konfiguracja: {MAX_POSTS_PER_DAY} post(y) dziennie")
+    """Główna funkcja"""
+    print(f"\n⚙️  KONFIGURACJA:")
+    print(f"   • Aktywny: {'✅ TAK' if CONFIG['active'] else '🔴 NIE'}")
+    print(f"   • Max postów/dzień: {CONFIG['max_posts_per_day']}")
+    print(f"   • Co ile godzin: {CONFIG['post_frequency_hours']}h")
+    print(f"   • Szansa: {CONFIG['post_chance_percent']}%")
+    print(f"   • Godziny: {CONFIG['exact_hours'] or 'dowolne'}")
+    print("-" * 40)
     
-    # 1. Wybierz produkt
+    # 1. Sprawdź czy publikować
+    if not should_post_now():
+        print("\n💤 Kończę pracę - nie postuję")
+        return
+    
+    # 2. Wybierz produkt
     product = choose_product()
     print(f"🛒 Produkt: {product['name'][:60]}...")
     print(f"📁 Kategoria: {product['category']}")
     
-    # 2. Stwórz post
+    # 3. Stwórz post
     post = create_post(product)
     print(f"\n📝 Post ({len(post)} znaków):")
     print("-" * 40)
     print(post)
     print("-" * 40)
     
-    # 3. Połącz z Mastodon
+    # 4. Połącz z Mastodon
     token = os.environ.get('MASTODON_ACCESS_TOKEN')
     url = os.environ.get('MASTODON_BASE_URL', 'https://mastodon.social')
     
@@ -232,7 +358,7 @@ def main():
         print(f"❌ Błąd logowania: {e}")
         return
     
-    # 4. Opublikuj
+    # 5. Opublikuj
     print("\n🚀 Publikuję...")
     try:
         result = mastodon.status_post(
