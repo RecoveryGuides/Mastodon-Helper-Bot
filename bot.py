@@ -25,7 +25,7 @@ CONFIG = {
     "active": True,                    # Ustaw False aby wyłączyć bota
     "max_posts_per_day": 8,           # Maks postów dziennie
     "post_frequency_hours": 2,        # Co ile godzin może postować (jeśli limit > 1)
-    "post_chance_percent": 60,        # Szansa na post w danym uruchomieniu
+    "post_chance_percent": 100,        # Szansa na post w danym uruchomieniu
     "exact_hours": None,              # None = dowolna godzina, lub np. [9, 15, 21]
     "timezone_offset": 1              # Przesunięcie czasu (UTC+0), zmień na 1 dla Polski zimą
 }
