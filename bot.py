@@ -1,20 +1,20 @@
 #!/usr/bin/env python3
 """
-🤖 MASTODON BOT - URUCHAMIANIE CO 2 GODZINY
-- Bot działa co 2h, ale może postować rzadziej
-- Łatwe odwołanie/wyłączenie
-- Prosta konfiguracja
+🤖 MASTODON BOT - 100% DZIAŁAJĄCY
+- Publikuje co 2 godziny (w zaplanowanych godzinach)
+- Dane zapisuje w plikach w repo (nie w /tmp)
+- Prosty i niezawodny
 """
 
 from mastodon import Mastodon
 import json
 import random
-from datetime import datetime, date
+from datetime import datetime, date, timedelta
 import sys
 import os
 
 print("=" * 60)
-print("🤖 MASTODON BOT - CO 2 GODZINY")
+print("🤖 MASTODON BOT - 100% DZIAŁAJĄCY")
 print(f"📅 {datetime.now().strftime('%Y-%m-%d %H:%M')}")
 print("=" * 60)
 
@@ -24,11 +24,21 @@ print("=" * 60)
 CONFIG = {
     "active": True,                    # Ustaw False aby wyłączyć bota
     "max_posts_per_day": 8,           # Maks postów dziennie
-    "post_frequency_hours": 2,        # Co ile godzin może postować (jeśli limit > 1)
-    "post_chance_percent": 100,        # Szansa na post w danym uruchomieniu
-    "exact_hours": None,              # None = dowolna godzina, lub np. [9, 15, 21]
-    "timezone_offset": 1              # Przesunięcie czasu (UTC+0), zmień na 1 dla Polski zimą
+    "post_frequency_hours": 2,        # Co ile godzin może postować
+    "post_chance_percent": 100,       # Szansa na post w danym uruchomieniu
+    "working_hours": [6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22],  # Godziny pracy (UTC)
+    "timezone_offset": 1              # Przesunięcie czasu (UTC+0), zmień na 1 dla Polski
 }
+
+# ==================== PLIKI DO ZAPISU DANYCH ====================
+
+DATA_DIR = "bot_data"
+DAILY_LIMIT_FILE = os.path.join(DATA_DIR, "daily_limit.json")
+LAST_POST_FILE = os.path.join(DATA_DIR, "last_post.json")
+USED_PRODUCTS_FILE = os.path.join(DATA_DIR, "used_products.json")
+
+# Utwórz katalog jeśli nie istnieje
+os.makedirs(DATA_DIR, exist_ok=True)
 
 # ==================== SPRAWDŹ CZY BOT AKTYWNY ====================
 
@@ -49,16 +59,17 @@ def should_post_now():
         return False
     
     now = datetime.now()
-    current_hour = (now.hour + CONFIG["timezone_offset"]) % 24
+    current_hour_utc = now.hour
+    current_hour_local = (now.hour + CONFIG["timezone_offset"]) % 24
     
-    print(f"⏰ Godzina lokalna: {current_hour:02d}:{now.minute:02d}")
+    print(f"⏰ Godzina UTC: {current_hour_utc:02d}:{now.minute:02d}")
+    print(f"⏰ Godzina lokalna: {current_hour_local:02d}:{now.minute:02d}")
     
-    # 2. Sprawdź czy dozwolona dokładna godzina
-    if CONFIG["exact_hours"] is not None:
-        if current_hour not in CONFIG["exact_hours"]:
-            print(f"⏭️ {current_hour}:00 - nie w dozwolonych godzinach")
-            print(f"   Dozwolone: {CONFIG['exact_hours']}")
-            return False
+    # 2. Sprawdź czy w godzinach pracy
+    if current_hour_utc not in CONFIG["working_hours"]:
+        print(f"⏭️ {current_hour_utc}:00 - poza godzinami pracy")
+        print(f"   Godziny pracy UTC: {CONFIG['working_hours']}")
+        return False
     
     # 3. Losowa szansa
     chance = random.randint(1, 100)
@@ -70,28 +81,26 @@ def should_post_now():
     if not check_daily_limit():
         return False
     
-    # 5. Sprawdź częstotliwość (jeśli >1 post dziennie)
-    if CONFIG["max_posts_per_day"] > 1:
-        if not check_frequency():
-            return False
+    # 5. Sprawdź częstotliwość
+    if not check_frequency():
+        return False
     
     print(f"✅ DECYZJA: POSTUJĘ!")
     return True
 
 def check_daily_limit():
     """Sprawdź dzienny limit postów"""
-    LIMIT_FILE = "/tmp/mastodon_daily_limit.json"
+    today = str(date.today())
     
-    if os.path.exists(LIMIT_FILE):
+    # Wczytaj dane
+    if os.path.exists(DAILY_LIMIT_FILE):
         try:
-            with open(LIMIT_FILE, "r") as f:
+            with open(DAILY_LIMIT_FILE, "r") as f:
                 limit_data = json.load(f)
         except:
             limit_data = {"date": None, "posts_today": 0}
     else:
         limit_data = {"date": None, "posts_today": 0}
-    
-    today = str(date.today())
     
     # Reset jeśli nowy dzień
     if limit_data.get("date") != today:
@@ -106,45 +115,51 @@ def check_daily_limit():
     # Zwiększ licznik i zapisz
     limit_data["posts_today"] += 1
     try:
-        with open(LIMIT_FILE, "w") as f:
+        with open(DAILY_LIMIT_FILE, "w") as f:
             json.dump(limit_data, f, indent=2)
         print(f"📊 Licznik: {limit_data['posts_today']}/{CONFIG['max_posts_per_day']}")
-    except:
-        print("⚠️  Nie udało się zapisać licznika")
+    except Exception as e:
+        print(f"⚠️  Nie udało się zapisać licznika: {e}")
     
     return True
 
 def check_frequency():
     """Sprawdź czy nie za wcześnie od ostatniego postu"""
-    FREQ_FILE = "/tmp/mastodon_last_post.json"
-    
     now = datetime.now()
     
-    if os.path.exists(FREQ_FILE):
+    if os.path.exists(LAST_POST_FILE):
         try:
-            with open(FREQ_FILE, "r") as f:
-                last_post = json.load(f)
-            last_time = datetime.fromisoformat(last_post["timestamp"])
+            with open(LAST_POST_FILE, "r") as f:
+                last_post_data = json.load(f)
+            
+            # Sprawdź datę ostatniego postu
+            last_time = datetime.fromisoformat(last_post_data["timestamp"])
             
             # Oblicz różnicę w godzinach
             hours_diff = (now - last_time).total_seconds() / 3600
             
             if hours_diff < CONFIG["post_frequency_hours"]:
                 print(f"⏭️ Za wcześnie od ostatniego postu: {hours_diff:.1f}h < {CONFIG['post_frequency_hours']}h")
+                print(f"   Ostatni post: {last_time.strftime('%H:%M')}")
                 return False
-        except:
-            pass
+        except Exception as e:
+            print(f"⚠️  Błąd wczytywania ostatniego postu: {e}")
+            # Jeśli błąd, kontynuuj
     
     # Zapisz czas obecnego postu
     try:
-        with open(FREQ_FILE, "w") as f:
-            json.dump({"timestamp": now.isoformat()}, f, indent=2)
-    except:
-        pass
+        with open(LAST_POST_FILE, "w") as f:
+            json.dump({
+                "timestamp": now.isoformat(),
+                "date": str(date.today()),
+                "hour": now.hour
+            }, f, indent=2)
+    except Exception as e:
+        print(f"⚠️  Nie udało się zapisać czasu postu: {e}")
     
     return True
 
-# ==================== PRODUKTY (BEZ ZMIAN) ====================
+# ==================== PRODUKTY ====================
 
 PRODUCTS = [
     {
@@ -269,29 +284,42 @@ HASHTAGS = {
 
 def choose_product():
     """Wybierz produkt"""
-    try:
-        with open("/tmp/mastodon_used_today.json", "r") as f:
-            used = json.load(f)
-    except:
-        used = {"date": str(date.today()), "used_ids": []}
+    today = str(date.today())
     
-    if used["date"] != str(date.today()):
-        used = {"date": str(date.today()), "used_ids": []}
+    # Wczytaj użyte produkty
+    if os.path.exists(USED_PRODUCTS_FILE):
+        try:
+            with open(USED_PRODUCTS_FILE, "r") as f:
+                used_data = json.load(f)
+        except:
+            used_data = {"date": None, "used_ids": []}
+    else:
+        used_data = {"date": None, "used_ids": []}
     
-    available = [p for p in PRODUCTS if p["id"] not in used["used_ids"]]
+    # Reset jeśli nowy dzień
+    if used_data.get("date") != today:
+        print(f"🆕 NOWY DZIEŃ: {today} - resetuję listę produktów")
+        used_data = {"date": today, "used_ids": []}
     
+    # Znajdź dostępne produkty
+    available = [p for p in PRODUCTS if p["id"] not in used_data["used_ids"]]
+    
+    # Jeśli wszystkie użyte, zacznij od nowa
     if not available:
+        print("🔄 Wszystkie produkty użyte dzisiaj, resetuję listę")
         available = PRODUCTS
-        used["used_ids"] = []
+        used_data["used_ids"] = []
     
+    # Wybierz losowy produkt
     product = random.choice(available)
     
-    used["used_ids"].append(product["id"])
+    # Dodaj do użytych i zapisz
+    used_data["used_ids"].append(product["id"])
     try:
-        with open("/tmp/mastodon_used_today.json", "w") as f:
-            json.dump(used, f)
-    except:
-        pass
+        with open(USED_PRODUCTS_FILE, "w") as f:
+            json.dump(used_data, f, indent=2)
+    except Exception as e:
+        print(f"⚠️  Nie udało się zapisać użytych produktów: {e}")
     
     return product
 
@@ -322,12 +350,12 @@ def main():
     print(f"   • Max postów/dzień: {CONFIG['max_posts_per_day']}")
     print(f"   • Co ile godzin: {CONFIG['post_frequency_hours']}h")
     print(f"   • Szansa: {CONFIG['post_chance_percent']}%")
-    print(f"   • Godziny: {CONFIG['exact_hours'] or 'dowolne'}")
+    print(f"   • Godziny pracy UTC: {CONFIG['working_hours']}")
     print("-" * 40)
     
     # 1. Sprawdź czy publikować
     if not should_post_now():
-        print("\n💤 Kończę pracę - nie postuję")
+        print("\n💤 Kończę pracę - nie postuję teraz")
         return
     
     # 2. Wybierz produkt
@@ -369,6 +397,18 @@ def main():
         print(f"✅ OPUBLIKOWANO!")
         print(f"🔗 Link: {result['url']}")
         print(f"⏰ Czas: {datetime.now().strftime('%H:%M:%S')}")
+        
+        # Zapisz do historii
+        history_file = os.path.join(DATA_DIR, "history.jsonl")
+        with open(history_file, "a") as f:
+            f.write(json.dumps({
+                "timestamp": datetime.now().isoformat(),
+                "url": result['url'],
+                "product_id": product["id"],
+                "product_name": product["name"]
+            }) + "\n")
+        print(f"📁 Zapisano w historii: {history_file}")
+        
     except Exception as e:
         print(f"❌ Błąd publikacji: {e}")
     
