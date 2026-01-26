@@ -1,21 +1,19 @@
-name: 🤖 Mastodon Bot (Co 2 godziny)
+name: 🤖 Mastodon Bot
 
 on:
   schedule:
-    # Co 2 godziny od 6:00 do 22:00 UTC (8:00-24:00 polski czas)
-    - cron: '0 6,8,10,12,14,16,18,20,22 * * *'
-  workflow_dispatch:  # Ręczne uruchomienie
+    # URUCHAMIAJ CO GODZINĘ między 6-22 UTC
+    - cron: '0 6-22 * * *'
+  workflow_dispatch:
 
 jobs:
   mastodon-bot:
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 3
     
     steps:
-    - name: 📥 Pobierz kod i dane
+    - name: 📥 Pobierz kod
       uses: actions/checkout@v3
-      with:
-        fetch-depth: 0  # Pobierz całą historię
     
     - name: 🐍 Skonfiguruj Pythona
       uses: actions/setup-python@v4
@@ -32,20 +30,3 @@ jobs:
         MASTODON_ACCESS_TOKEN: ${{ secrets.MASTODON_ACCESS_TOKEN }}
         MASTODON_BASE_URL: ${{ secrets.MASTODON_BASE_URL }}
       run: python bot.py
-    
-    - name: 💾 Zapisz zmiany w danych
-      run: |
-        git config user.name "GitHub Actions Bot"
-        git config user.email "actions@github.com"
-        
-        # Dodaj tylko pliki danych
-        git add bot_data/
-        
-        # Commit i push tylko jeśli są zmiany
-        if git diff --cached --quiet; then
-          echo "📭 Brak zmian w danych"
-        else
-          git commit -m "🤖 Update bot data $(date +'%Y-%m-%d %H:%M')"
-          git push
-          echo "✅ Dane zaktualizowane"
-        fi
