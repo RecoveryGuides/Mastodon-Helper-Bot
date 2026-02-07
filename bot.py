@@ -36,8 +36,8 @@ def should_post_now():
         return False
     
     # 90% szans na publikację
-    if random.random() > 0.9:
-        print("🎲 Losowo pomijam (10% szans)")
+    if random.random() > 0.7:
+        print("🎲 Losowo pomijam (30% szans)")
         return False
     
     print(f"✅ POSTUJĘ o {current_hour}:00!")
